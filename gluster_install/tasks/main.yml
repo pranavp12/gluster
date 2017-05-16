@@ -1,0 +1,95 @@
+---
+# tasks file for gluster_install
+- name: Fetch glusterfs repo file
+  get_url: dest=/etc/yum.repos.d/glusterfs-epel.repo 
+           url=https://download.gluster.org/pub/gluster/glusterfs/3.7/LATEST/EPEL.repo/glusterfs-epel.repo
+
+- name: Set repo file permissions
+  file: owner=root group=root mode=0644 
+        path=/etc/yum.repos.d/glusterfs-epel.repo
+
+- name: install the glusterfs rpm from a remote repo
+  yum:
+    name: http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-9.noarch.rpm
+    state: present
+    update_cache: yes
+
+- name: Install glusterfs server packages (CentOS)
+  yum: name={{item}} state=installed enablerepo="glusterfs-epel" disable_gpg_check=yes
+  with_items:
+        - glusterfs-server
+        - glusterfs-client
+        - attr
+
+- name: Ensure the GlusterFS service is running (CentOS)
+  service: name=glusterd state=started
+
+- name: Turn off firewall on both servers
+  service: name=firewalld state=stopped
+
+- name: create gluster volume
+  gluster_volume:
+    force: true
+    state: present
+    name: test1
+    bricks: /g1
+#    rebalance: yes
+#    replicas: 2
+    cluster:
+      - 10.20.3.148
+      - 10.20.3.122
+  run_once: true
+  
+- name: start gluster volume
+  gluster_volume:
+    state: started
+    name: test1
+
+- name: make mount directory
+  file:
+    path: /mnt/glusterfs
+    state: directory
+    mode: 0755
+
+#- name: mount the directory on server1
+#  command: mount.glusterfs 10.20.3.140:/test1 /mnt/glusterfs
+#  when: servers[ansible_default_ipv4.address] == "server2"
+
+#- name: mount the directory on server2
+#  command: mount.glusterfs 10.20.3.144:/test1 /mnt/glusterfs
+#  when: servers[ansible_default_ipv4.address] == "server1"
+
+#- name: Making the mount entry in /etc/rc.local
+#  - lineinfile:
+#    path: /etc/rc.local
+#    line: '/usr/sbin/mount.glusterfs server1.example.com:/test1 /mnt/glusterfs'
+
+- name: Push java application
+  copy:
+    src: /root/minio-app-0.3.0.jar
+    dest: /root/minio-app-0.3.0.jar
+    mode: 0755
+
+- name: Install java application
+  shell: nohup java -jar /root/minio-app-0.3.0.jar >> /root/app.log 2>&1 &
+  
+
+- name: install minio server
+  get_url: dest=/opt/minio
+           url=https://dl.minio.io/server/minio/release/linux-amd64/minio
+           mode=0777
+   
+- name: Create user for minio installation        
+  user:
+    name: minioappuser
+    comment: "Minio Application User"
+
+- name: start minio application
+#  become: yes
+#  become_user: minioappuser
+  shell: /opt/minio server /mnt/glusterfs
+  ignore_errors: yes
+  register: minio_vars
+ #  test: "{{ minio_vars.stdout_lines  }}"
+
+

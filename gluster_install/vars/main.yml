@@ -1,0 +1,17 @@
+---
+# vars file for gluster_install
+  servers:
+      - "10.20.3.140": "server1"
+      - "10.20.3.144": "server2"
+  gluster_volume: gv0
+  gluster_replicas: 2
+  gluster_brick_dirs: 
+      - /srv/gluster/brick1
+      - /srv/gluster/brick2
+      - /srv/gluster/brick3
+      - /srv/gluster/brick4
+      - /srv/gluster/brick5
+      - /srv/gluster/brick6
+
+
+
